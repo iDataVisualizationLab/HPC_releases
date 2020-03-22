@@ -1,19 +1,16 @@
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/iDataVisualizationLab/HPCC/master/LICENSE)
 # 2020
 
-TimeRadar Current: https://idatavisualizationlab.github.io/HPC_releases/TimeRadar
+Looking for the description? https://www.notion.so/TimeRadar-ca60097418344ce0aaa86a667ae88922
 
-TimeRadar release 0220: https://idatavisualizationlab.github.io/HPC_releases/TimeRadar20200219
+TimeRadar release: https://idatavisualizationlab.github.io/HPC_releases/TimeRadar
 
 ![ScreenShot](https://github.com/iDataVisualizationLab/HPCC/blob/master/HiperView/Images_cases/TimeRadar.PNG)
 
 # 2019
 
-HiperView Current:  https://idatavisualizationlab.github.io/HPC_releases/HiperView/demo.html
+HiperView release:  https://idatavisualizationlab.github.io/HPC_releases/HiperView/demo.html
 
-HiperView release 0919: https://idatavisualizationlab.github.io/HPC_releases/HiperView20190914/demo.html
-
-HiperView release 0619: https://idatavisualizationlab.github.io/HPC_releases/HiperView20190531/demo.html
 
 ![ScreenShot](https://github.com/iDataVisualizationLab/HPCC/blob/master/HiperView/Images_cases/HiperView.png)
 
