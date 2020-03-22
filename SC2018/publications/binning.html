@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<style>
+
+    .axis--y .domain {
+        display: none;
+    }
+
+    .tick {
+        font-size: 18px;
+    }
+
+</style>
+<svg width="960" height="500"></svg>
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script>
+
+    var svg = d3.select("svg"),
+        width = +svg.attr("width"),
+        height = +svg.attr("height"),
+        margin = {top: 20, right: 30, bottom: 30, left: 40};
+
+    var x = d3.scaleLinear()
+        //.domain([40, 100])
+        .domain([1.5, 5.5])
+        .range([margin.left, width - margin.right]);
+
+    var y = d3.scaleLinear()
+        .domain([0, 0.1])
+        .range([height - margin.bottom, margin.top]);
+
+    svg.append("g")
+        .attr("class", "axis axis--x")
+        .attr("transform", "translate(0," + (height - margin.bottom) + ")")
+        .attr("font-size", 127)
+         .call(d3.axisBottom(x))
+        .append("text")
+        .attr("x", width - margin.right)
+        .attr("y", 26)
+        .attr("fill", "#000")
+        .attr("text-anchor", "end")
+        .attr("font-size", 17)
+        .attr("font-weight", "bold");
+//        .text("Time between eruptions (min.)");
+
+    /*svg.append("g")
+        .attr("class", "axis axis--y")
+        .attr("transform", "translate(" + margin.left + ",0)")
+        .call(d3.axisLeft(y).ticks(null, "%"));*/
+
+
+    //d3.json("dataForCRII/faithful.json", function(error, faithful) {
+
+    d3.tsv("dataForCRII/faithful2.tsv", function(d) {
+        d.eruptions = +d.eruptions;
+        d.waiting = +d.waiting;
+        return d;
+    }, function(error, faithful) {
+
+        if (error) throw error;
+
+        var data = [];
+        faithful.forEach(function (d) {
+            data.push(d.waiting);
+        })
+
+        var n = data.length,
+            bins = d3.histogram().domain(x.domain()).thresholds(30)(data),
+            density = kernelDensityEstimator(kernelEpanechnikov(0.6), x.ticks(40))(data);
+            //density = kernelDensityEstimator(kernelEpanechnikov(0.2), x.ticks(16))(data);
+
+        svg.insert("g", "*")
+            .attr("fill", "#4682b6")
+            .selectAll("rect")
+            .data(bins)
+            .enter().append("rect")
+            .attr("x", function(d) { return x(d.x0) + 1; })
+            .attr("y", function(d) { return y(d.length / n); })
+            .attr("width", function(d) { return x(d.x1) - x(d.x0) - 1; })
+            .attr("height", function(d) { return y(0) - y(d.length / n); });
+
+        svg.append("path")
+            .datum(density)
+            .attr("fill", "none")
+            .attr("stroke", "#000")
+            .attr("stroke-width", 1)
+            .attr("stroke-linejoin", "round")
+            .attr("d",  d3.line()
+                .curve(d3.curveBasis)
+                .x(function(d) { return x(d[0]); })
+                .y(function(d) { return y(d[1]/14); }));
+
+
+
+
+        // K-means for Multi modality features in HMAViz
+        function k_means1(x, n, means) {
+            // A simple average function, just because
+            // JavaScript doesn't provide one by default.
+            function avg(x) {
+                var s = 0;
+                for (var i = 0; i < x.length; i++) {
+                    s += x[i];
+                }
+                return (x.length > 0) ? (s / x.length) : 0;
+            }
+
+            // n is the number of means to choose.
+            if (n === 0) {
+                throw new Error('The number of means must be non-zero');
+            } else if (n > x.length) {
+                throw new Error('The number of means must be fewer than the length of the dataset');
+            }
+
+            var seen = {};
+            if (!means) {
+                means = [];
+                // Randomly choose k means from the data and make sure that no point
+                // is chosen twice. This bit inspired by polymaps
+                while (means.length < n) {
+                    var idx = Math.floor(Math.random() * (x.length - 1));
+                    if (!seen[idx]) {
+                        means.push({ val: x[idx], vals: [] });
+                        seen[idx] = true;
+                    }
+                }
+            }
+
+            var i;
+            // For every value, find the closest mean and add that value to the
+            // mean's `vals` array.
+            for (i = 0; i < x.length; i++) {
+                var dists = [];
+                for (var j = 0; j < means.length; j++) {
+                    dists.push(Math.abs(x[i] - means[j].val));
+                }
+                var closest_index = dists.indexOf(Math.min.apply(null, dists));
+                means[closest_index].vals.push(x[i]);
+            }
+
+            // Create new centers from the centroids of the values in each
+            // group.
+            //
+            // > In the case of one-dimensional data, such as the test scores,
+            // the centroid is the arithmetic average of the values
+            // of the points in a cluster.
+            //
+            // [Vance Faber](http://bit.ly/LHCh2y)
+            var newvals = [];
+            for (i = 0; i < means.length; i++) {
+                var centroid = avg(means[i].vals);
+                newvals.push({
+                    val: centroid,
+                    vals: []
+                });
+            }
+            return newvals;
+        }
+
+        // This is the testing data
+        var standardizedData = [];
+        for (var i = 0; i < 100; i++) {
+            if (i%2==0)
+                standardizedData.push(Math.random()/10);
+            else
+                standardizedData.push(1-Math.random()/10);
+        }
+        console.log(standardizedData);
+
+        // Apply K-means
+        var means = k_means1(standardizedData, 2);
+        var means2 = k_means1(standardizedData, 2, means);
+        var means3 = k_means1(standardizedData, 2, means2);
+        var means4 = k_means1(standardizedData, 2, means3);
+        console.log(means4[0].val+" "+means4[1].val);    
+
+        // Compute multimodality feature
+        var multimodality = Math.sqt(means4[0].val-means4[1].val)
+        console.log(" multimodality="+multimodality);  
+
+    });
+
+    function kernelDensityEstimator(kernel, X) {
+        return function(V) {
+            return X.map(function(x) {
+                return [x, d3.mean(V, function(v) { return kernel(x - v); })];
+            });
+        };
+    }
+
+    function kernelEpanechnikov(k) {
+        return function(v) {
+            return Math.abs(v /= k) <= 1 ? 0.75 * (1 - v * v) / k : 0;
+        };
+    }
+
+</script>
