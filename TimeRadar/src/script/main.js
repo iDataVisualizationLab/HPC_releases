@@ -1674,7 +1674,7 @@ $( document ).ready(function() {
         let temp = serviceFullList.filter((s,i)=>s.enable);
         temp.sort((a,b)=>a.angle-b.angle);
         temp.forEach((d,i)=>d.angle=i*2*Math.PI/temp.length);
-        MetricController.axisSchema(serviceFullList).update();
+        MetricController.axisSchema(serviceFullList).datasummary(undefined).update();
     })
     d3.select('#clusterMethod').on('change',function(){
         Radarplot_opt.clusterMethod = this.value;
