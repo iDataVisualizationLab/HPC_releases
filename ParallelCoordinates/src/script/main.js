@@ -552,7 +552,7 @@ function init() {
                 return d[k];
             }))
             .range([h, 0])) || (_.isNumber(data[0][k])) && (yscale[k] = d3.scaleLinear()
-            .domain(d3.extent(data, function (d) {
+            .domain(s.range?s.range:d3.extent(data, function (d) {
                 return +d[k];
             }))
             .range([h, 0]))));
@@ -590,9 +590,12 @@ function resetRequest() {
                 return d[k];
             }))
             .range([h, 0])) || (_.isNumber(data[0][k])) && (yscale[k] = d3.scaleLinear()
-            .domain(d3.extent(data, function (d) {
-                return +d[k];
-            }))
+            // .domain(d3.extent(data, function (d) {
+            //     return +d[k];
+            // }))
+            .domain(s.range?s.range:d3.extent(data, function (d) {
+                     return +d[k];
+                 }))
             .range([h, 0]))));
         return s.enable?xtempscale:false;
     }).map(s=>s.text));
