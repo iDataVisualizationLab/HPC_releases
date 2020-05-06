@@ -1,3 +1,9 @@
+// read variable
+const TIMEKEY = "Time";
+const TIMEFORMAT = d3.timeFormat("%B %d %Y %H:%M");
+
+var stickKey = TIMEKEY;
+var stickKeyFormat = TIMEFORMAT;
 // system variable
 var application_name ='HiperView';
 var jobList=[];
@@ -154,6 +160,8 @@ function newdatatoFormat (data,separate){
     const variables = _.without(Object.keys(data[0]),'timestamp','time');
     data.forEach(d=>variables.forEach(k=>d[k] = d[k]===""?null:(+d[k]))) // format number
     let keys ={};
+    if (variables.find(k=>k.split(separate).length>1)===undefined)
+        separate = "-";
     variables.forEach((k,ki)=>{
         let split_string = k.split(separate);
         const nameh = split_string.shift();
@@ -248,6 +256,12 @@ function newdatatoFormat_noSuggestion (data,separate){
     // FIXME detect format
     const variables = _.without(Object.keys(data[0]),'timestamp','time');
     data.forEach(d=>variables.forEach(k=>d[k] = d[k]===""?null:(+d[k]))) // format number
+    // test sepatate
+
+    if (variables.find(k=>k.split(separate).length>1)===undefined)
+        separate = "-";
+
+
     let keys ={};
     variables.forEach((k,ki)=>{
         let split_string = k.split(separate);
@@ -957,4 +971,258 @@ function getHistdata(d, name, marker) {
         };
     }
     return r;
+}
+function orderByCorrelation(){
+    let simMatrix = variableCorrelation;
+    const orderMatrix = simMatrix.map(d=>d.index);
+    let mapIndex = [];
+    simMatrix.forEach((v,i)=>{
+        v.total =0;
+        mapIndex.push(i);
+        orderMatrix.forEach((j,jj)=>{
+            if (i!==j) {
+                if (j-i>0)
+                    v.total += v[j-i-1];
+                else
+                    v.total += simMatrix[jj][i-1-j];
+            }
+        })
+    });
+    mapIndex.sort((a,b)=> simMatrix[a].total-simMatrix[b].total);
+    // let undefinedposition = data.findIndex(d=>d[0].text.match(': undefined'))
+    // mapIndex.sort((a,b)=>
+    //     b===undefinedposition?1:(a===undefinedposition?-1:0)
+    // )
+    let current_index = mapIndex.pop();
+    let orderIndex = [simMatrix[current_index].index_s];
+
+    do{
+        let maxL = -Infinity;
+        let maxI = 0;
+        mapIndex.forEach((d)=>{
+            let temp;
+            if (orderMatrix[d]>simMatrix[current_index].index ){
+                temp = simMatrix[current_index][orderMatrix[d]-simMatrix[current_index].index -1];
+            }else{
+                temp = simMatrix[d][simMatrix[current_index].index -orderMatrix[d]-1]
+            }
+            if (maxL<temp){
+                maxL = temp;
+                maxI = d;
+            }
+        });
+        orderIndex.push(simMatrix[maxI].index_s);
+        current_index = maxI;
+        mapIndex = mapIndex.filter(d=>d!=maxI);
+    } while(mapIndex.length);
+    orderIndex.forEach((o,i)=>{
+        serviceFullList[o].angle = i*2*Math.PI/(orderIndex.length);
+    });
+}
+
+function enableVariableCorrelation(isenable){
+    d3.select('#enableVariableCorrelation').attr('disabled',!isenable?'':null)
+}
+
+function distanceL2(a, b){
+    let dsum = 0;
+    a.forEach((d,i)=> {dsum +=(d-b[i])*(d-b[i])});
+    return Math.round(Math.sqrt(dsum)*Math.pow(10, 10))/Math.pow(10, 10);
+}
+function distanceL1(a,b) {
+    let dsum = 0;
+    a.forEach((d,i)=> {dsum +=Math.abs(d-b[i])}); //modified
+    return Math.round(dsum*Math.pow(10, 10))/Math.pow(10, 10);
+}
+
+function handle_clusterinfo () {
+    let data_info = [['Grouping Method:',group_opt.clusterMethod]];
+    d3.select(`#${group_opt.clusterMethod}profile`).selectAll('label').each(function(d,i) {
+        data_info.push([d3.select(this).text(), group_opt.bin[Object.keys(group_opt.bin)[i]]])
+    });
+    data_info.push(['#group calculated:',cluster_info.length]);
+    let table = d3.select('#clusterinformation').select('table tbody');
+    let tr=table
+        .selectAll('tr')
+        .data(data_info);
+    tr.exit().remove();
+    let tr_new = tr.enter().append('tr');
+    let td = table.selectAll('tr').selectAll('td').data(d=>d);
+    td.exit().remove();
+    td.enter().append('td')
+        .merge(td)
+        .text(d=>d);
+}
+
+function recomendName (clusterarr,haveDescription){
+    clusterarr.forEach((c,i)=>{
+        c.index = i;
+        c.axis = [];
+        c.labels = ''+i;
+        c.name = `group_${i+1}`;
+        let zero_el = c.__metrics.filter(f=>!f.value);
+        let name='';
+        if (zero_el.length && zero_el.length<c.__metrics.normalize.length){
+            c.axis = zero_el.map(z=>{return{id:z.axis,description:'undefined'}});
+            name += `${zero_el.length} metric(s) undefined `;
+        }else if(zero_el.length===c.__metrics.normalize.length){
+            c.text = `undefined`;
+            if(!clusterDescription[c.name])
+                clusterDescription[c.name] = {};
+            clusterDescription[c.name].id = c.name;
+            clusterDescription[c.name].text = c.text;
+            return;
+        }
+        name += c.__metrics.filter(f=>f.value>0.75).map(f=>{
+            c.axis.push({id:f.axis,description:'high'});
+            return 'High '+f.axis;
+        }).join(', ');
+        name = name.trim();
+        if (name==='')
+            c.text = ``;
+        else
+            c.text = `${name}`;
+        if(!haveDescription || !clusterDescription[c.name]){
+            if(!clusterDescription[c.name])
+                clusterDescription[c.name] = {};
+            clusterDescription[c.name].id = c.name;
+            clusterDescription[c.name].text = c.text;
+        }
+    });
+}
+
+function recomendColor (clusterarr) {
+    let colorCa = colorScaleList['customschemeCategory'].slice();
+    if (clusterarr.length>10 && clusterarr.length<21)
+        colorCa = d3.schemeCategory20;
+    else if (clusterarr.length>20)
+        colorCa = clusterarr.map((d,i)=>d3.interpolateTurbo(i/(clusterarr.length-1)));
+    let colorcs = d3.scaleOrdinal().range(colorCa);
+    let colorarray = [];
+    let orderarray = [];
+    // clusterarr.filter(c=>!c.text.match('undefined'))
+    clusterarr.filter(c=>c.text!=='undefined')
+        .forEach(c=>{
+            colorarray.push(colorcs(c.name));
+            orderarray.push(c.name);
+        });
+    clusterarr.filter(c=>c.text==='undefined').forEach(c=>{
+        colorarray.push('gray');
+        orderarray.push(c.name);
+    });
+    colorCluster.range(colorarray).domain(orderarray)
+}
+
+function similarityCal(data){
+    const n = data.length;
+    let simMatrix = [];
+    let mapIndex = [];
+    for (let i = 0;i<n; i++){
+        let temp_arr = [];
+        temp_arr.total = 0;
+        for (let j=i+1; j<n; j++){
+            let tempval = similarity(data[i][0],data[j][0]);
+            temp_arr.total += tempval;
+            temp_arr.push(tempval)
+        }
+        for (let j=0;j<i;j++)
+            temp_arr.total += simMatrix[j][i-1-j];
+        temp_arr.name = data[i][0].name;
+        temp_arr.index = i;
+        mapIndex.push(i);
+        simMatrix.push(temp_arr)
+    }
+    mapIndex.sort((a,b)=> simMatrix[a].total-simMatrix[b].total);
+    // let undefinedposition = data.findIndex(d=>d[0].text.match(': undefined'))
+    // mapIndex.sort((a,b)=>
+    //     b===undefinedposition?1:(a===undefinedposition?-1:0)
+    // )
+    let current_index = mapIndex.pop();
+    let orderIndex = [simMatrix[current_index].index];
+
+    do{
+        let maxL = Infinity;
+        let maxI = 0;
+        mapIndex.forEach((d)=>{
+            let temp;
+            if (d>simMatrix[current_index].index ){
+                temp = simMatrix[current_index][d-current_index-1];
+            }else{
+                temp = simMatrix[d][current_index-d-1]
+            }
+            if (maxL>temp){
+                maxL = temp;
+                maxI = d;
+            }
+        });
+        orderIndex.push(simMatrix[maxI].index);
+        current_index = maxI;
+        mapIndex = mapIndex.filter(d=>d!=maxI);} while(mapIndex.length);
+    return orderIndex;
+    function similarity (a,b){
+        return Math.sqrt(d3.sum(a,(d,i)=>(d.value-b[i].value)*(d.value-b[i].value)));
+    }
+}
+
+function onClusterHistogram(){
+    let h = 50;
+    let w = radarChartclusteropt.w*0.85;
+    let interval = sampleS.timespan[1]-sampleS.timespan[0];
+    let violiin_chart = d3.histChart().graphicopt({width:w,height:h,opt:{dataformated:true},tick:{visibile:false},
+        formatx:(d)=>millisecondsToStr(d*sampleS.timespan.length*interval),
+        middleAxis:{'stroke-width':0.5},displayDetail:true});
+    var scale = d3.scaleTime().domain([interval,interval*sampleS.timespan.length]).range([1,sampleS.timespan.length]);
+    var histogram = d3.histogram()
+        .domain([1,sampleS.timespan.length])
+        // .thresholds(d3.range(0,20).map(d=>scale(d)))    // Important: how many bins approx are going to be made? It is the 'resolution' of the violin plot
+        .thresholds(scale.ticks(11).map(s=>scale(s)))    // Important: how many bins approx are going to be made? It is the 'resolution' of the violin plot
+        .value(d => d);
+    let nestCluster = d3.nest().key(d=>d['clusterName']).rollup(d=>getHist(d.map(e=>e.__deltaTimestep),d[0].clusterName,_.uniq(d.map(e=>e.name)).length)).object(timeSpacedata?timeSpacedata:handle_data_model(tsnedata,undefined,true));
+    const customrangeY = [0,d3.max(d3.values(nestCluster),e=>d3.max(e.arr,d=>d[1]))];
+
+    d3.select('#clusterDisplay').selectAll('.radarCluster').append('svg')
+        .attr('class','clusterHist')
+        .attrs({width: w,height:h})
+        .styles({
+            'transform':'translateY(-50%)',
+            'position': 'absolute',
+            'top':'50%',
+            'overflow':'visible'
+        })
+        .each(function(d){
+            violiin_chart.graphicopt({color:(i)=>colorCluster(d.id),title:[{text:`${nestCluster[d.id].total} state${nestCluster[d.id].total>1?'s':''}`}
+                    ,{text:`${nestCluster[d.id].extra} node${nestCluster[d.id].total>1?'s':''}`}]}).rangeY(customrangeY).data([nestCluster[d.id]]).draw(d3.select(this))
+        });
+    function getHist(v,name,nodes){
+        let hisdata = histogram(v);
+        let sumstat = hisdata.map((d, i) => [(d.x0 + (d.x1 - d.x0) / 2)/sampleS.timespan.length, (d || []).length]);
+        return {axis: name,arr:sumstat,total:v.length,extra:nodes};
+    }
+}
+
+function calculateServiceRange() {
+    serviceFullList_Fullrange = _.cloneDeep(serviceFullList);
+    serviceList_selected.forEach((s, si) => {
+        const sa = serviceListattr[s.index]
+        let min = +Infinity;
+        let max = -Infinity;
+        _.without(Object.keys(sampleS),'timespan').map(h => {
+            let temp_range = d3.extent(_.flatten(sampleS[h][sa]));
+            if (temp_range[0] < min)
+                min = temp_range[0];
+            if (temp_range[1] > max)
+                max = temp_range[1];
+        });
+        serviceLists[si].sub.forEach(sub => sub.range = [min, max]);
+    })
+}
+
+// ------------------------UI------------------------------
+function initClusterUi() {
+    $('#clusterMethod').val(group_opt.clusterMethod);
+    $('#startBinGridSize').val(group_opt.bin.startBinGridSize || 10);
+    $('#lowrange').val(group_opt.bin.range[0] || 9);
+    $('#highrange').val(group_opt.bin.range[1] || 11);
+    $('#knum').val(group_opt.bin.k || 5);
+    $('#kiteration').val(group_opt.bin.iterations || 50);
 }

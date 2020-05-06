@@ -5,7 +5,7 @@ var hostList;
 var serviceList = ["Temperature","Memory_usage","Fans_speed","Power_consum","Job_scheduling"];
 var serviceList_selected = [{"text":"Temperature","index":0},{"text":"Memory_usage","index":1},{"text":"Fans_speed","index":2},{"text":"Power_consum","index":3}];
 
-var sampleS,tsnedata,outlyingList = [];
+var sampleS,tsnedata,outlyingList = [],shap={};
 outlyingList.pointObject = {};
 
 var serviceListattr = ["arrTemperature","arrMemory_usage","arrFans_health","arrPower_usage","arrJob_scheduling"];
@@ -17,7 +17,7 @@ var serviceFullList_Fullrange = serviceLists2serviceFullList(serviceLists);
 
 srcpath = '../HiperView/';
 
-
+var variableCorrelation;
 let jobMap_opt = {
     margin:{top:90,bottom:20,left:20,right:20},
     width: 1000,
@@ -52,16 +52,6 @@ function zoomtoogle(event) {
     let oldvval = d3.select(event).classed('lock');
     jobMap.zoomtoogle(!oldvval);
     d3.select(event).classed('lock',!oldvval);
-}
-function distanceL2(a, b){
-    let dsum = 0;
-    a.forEach((d,i)=> {dsum +=(d-b[i])*(d-b[i])});
-    return Math.round(Math.sqrt(dsum)*Math.pow(10, 10))/Math.pow(10, 10);
-}
-function distanceL1(a,b) {
-    let dsum = 0;
-    a.forEach((d,i)=> {dsum +=Math.abs(d-b[i])}); //modified
-    return Math.round(dsum*Math.pow(10, 10))/Math.pow(10, 10);
 }
 function getClusterName (name,index){
     return (sampleS[name].arrcluster||[])[index];
@@ -114,7 +104,17 @@ function systemFormat() {
     thresholds = [[3,98], [0,99], [1050,17850],[0,200] ];
     serviceFullList_Fullrange = _.cloneDeep(serviceFullList);
 }
-
+function inithosts(){
+    hostList = {data:{hostlist:{}}};
+    const host_list = _.without(Object.keys(sampleS),'timespan');
+    host_list.forEach((nameh,i)=>{
+        hostList.data.hostlist [nameh] = {
+            rack: nameh.split('-')[1],
+            node: nameh.split('-')[2],
+            id : i,
+        };
+    })
+}
 function inithostResults (worker) {
     hosts = [];
     const hostdata = hostList.data.hostlist;
@@ -129,4 +129,27 @@ function inithostResults (worker) {
         hosts.push(h);
     }
     hostResults = sampleS;
+}
+
+function initTsnedata() {
+    tsnedata = {};
+    hosts.forEach(h => {
+        tsnedata[h.name] = sampleS.timespan.map((t, i) => {
+            let array_withNull = [];
+            let array_normalize = _.flatten(serviceLists.map(a => d3.range(0, a.sub.length).map(vi => {
+                let v = sampleS[h.name][serviceListattr[a.id]][i][vi];
+                let sval =  v === null? undefined:d3.scaleLinear().domain(a.sub[0].range)(v);
+                array_withNull.push(sval);
+                return sval || 0;
+            })));
+            array_normalize.name = h.name;
+            array_normalize.timestep = i;
+            array_normalize.__valwithNull = array_withNull;
+            return array_normalize;
+        })
+    });
+}
+
+function isStrickCluster(d){
+    return radarRatio<1?d.minDist<cluster_info[d.cluster].radius*radarRatio:true;
 }

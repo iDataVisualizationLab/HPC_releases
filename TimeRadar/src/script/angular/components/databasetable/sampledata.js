@@ -80,6 +80,42 @@ angular.module('hpccApp').constant('SampleData', [
         date:"17 Feb 2020",
         group:"sample",
         formatType:'json'
+    },{
+        id:"influxdb0413-0418",
+        name:"HPC data - 13-18 Apr 2020 (with job data)",
+        url:"../HiperView/data/influxdb0413-0418.json",
+        description:"",
+        category:'hpcc',
+        date:"13 Apr 2020",
+        group:"sample",
+        formatType:'json'
+    },{
+        id:"influxdb0426_2am-0426_10pm",
+        name:"HPC data - 26 Apr 2020 (with job data)",
+        url:"../HiperView/data/influxdb0426_2am-0426_10pm.json",
+        description:"",
+        category:'hpcc',
+        date:"26 Apr 2020",
+        group:"sample",
+        formatType:'json'
+    },{
+        id:"influxdb0424-0427",
+        name:"HPC data - 24-27 Apr 2020 (with job data)",
+        url:"../HiperView/data/influxdb0424-0427.json",
+        description:"",
+        category:'hpcc',
+        date:"24 Apr 2020",
+        group:"sample",
+        formatType:'json'
+    },{
+        id:"influxdb0424-0427-filtered",
+        name:"HPC data - 24-27 Apr 2020 filtered",
+        url:"../HiperView/data/influxdb0424-0427_filtered.json",
+        description:"",
+        category:'hpcc',
+        date:"24 Apr 2020",
+        group:"sample",
+        formatType:'json'
     },
     {
         id:"zenith_idrac_3.1_through_3.5",

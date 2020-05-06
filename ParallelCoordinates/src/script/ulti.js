@@ -166,13 +166,13 @@ function switchTheme(){
         this.value = "dark";
         this.text = "Light";
         d3.select('body').classed('light',false);
-        d3.select('.logoLink').select('img').attr('src',"https://idatavisualizationlab.github.io/HPC_releases/HiperView/images/TTUlogoWhite.png");
+        d3.select('.logoLink').select('img').attr('src',"https://idatavisualizationlab.github.io/HPCC/HiperView/images/TTUlogoWhite.png");
         return;
     }
     this.value = "light";
     this.text = "Dark";
     d3.select('body').classed('light',true);
-    d3.select('.logoLink').select('img').attr('src',"https://idatavisualizationlab.github.io/HPC_releases/HPCViz/images/TTUlogo.png");
+    d3.select('.logoLink').select('img').attr('src',"https://idatavisualizationlab.github.io/HPCC/HPCViz/images/TTUlogo.png");
     return;
 }
 function discovery(d){

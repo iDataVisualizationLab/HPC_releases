@@ -678,13 +678,13 @@ function switchTheme(){
         this.setAttribute('value', "dark");
         this.querySelector('span').textContent = "Light";
         d3.select('body').classed('light',false);
-        d3.select('.logoLink').select('img').attr('src',"https://idatavisualizationlab.github.io/HPC_releases/HiperView/images/TTUlogoWhite.png");
+        d3.select('.logoLink').select('img').attr('src',"https://idatavisualizationlab.github.io/HPCC/HiperView/images/TTUlogoWhite.png");
         return;
     }
     this.setAttribute('value', "light");
     this.querySelector('span').textContent = "Dark";
     d3.select('body').classed('light',true);
-    d3.select('.logoLink').select('img').attr('src',"https://idatavisualizationlab.github.io/HPC_releases/HPCViz/images/TTUlogo.png");
+    d3.select('.logoLink').select('img').attr('src',"https://idatavisualizationlab.github.io/HPCC/HPCViz/images/TTUlogo.png");
     return;
 }
 function addDatasetsOptions() {
@@ -1107,7 +1107,7 @@ function createRadar_func(datapoint, bg, data, customopt,className,radaropt,colo
     className = className||"compute linkLineg ";
     let size_w = customopt?(customopt.size?customopt.size:radaropt.w):radaropt.w;
     let size_h = customopt?(customopt.size?customopt.size:radaropt.h):radaropt.h;
-    let colorfill = (customopt&&customopt.colorfill)?0.5:false;
+    let colorfill = (customopt&&customopt.colorfill)?(customopt.colorfill===true?0.5:customopt.colorfill):false;
     let radar_opt = {
         w: size_w,
         h: size_h,
@@ -1131,6 +1131,8 @@ function createRadar_func(datapoint, bg, data, customopt,className,radaropt,colo
     }
 
     // replace thumnail with radar mini
+    if(data)
+        datapoint.data([data])
     datapoint.each(function(d){
         d3.select(this).attr('transform',`translate(${-radar_opt.w/2},${-radar_opt.h/2})`)
         if (colorfill)
@@ -1152,4 +1154,61 @@ function ordinal_suffix_of(i,sep) {
         return sep?'rd': (i + "rd");
     }
     return sep?'th': (i + "th");
+}
+function axisHistogram(text,range,d){
+    d = d.filter(e=>e)
+    if (d.length) {
+        outlierMultiply = 3
+        var scale = d3.scaleLinear().domain(range);
+        var histogram = d3.histogram()
+            .domain(scale.domain())
+            // .thresholds(d3.range(0,20).map(d=>scale(d)))    // Important: how many bins approx are going to be made? It is the 'resolution' of the violin plot
+            .thresholds(scale.ticks(100))    // Important: how many bins approx are going to be made? It is the 'resolution' of the violin plot
+            .value(d => d);
+        let hisdata = histogram(d);
+
+        let start=-1,startcheck=true,end= hisdata.length-1;
+        let sumstat = hisdata.map((d, i) => {
+            let temp = [d.x0 + (d.x1 - d.x0) / 2, (d || []).length];
+            if (startcheck && temp[1]===0)
+                start = i;
+            else {
+                startcheck = false;
+                if (temp[1]!==0)
+                    end = i;
+            }
+            return temp});
+        if (start===end)
+            sumstat = [];
+        else
+            sumstat = sumstat.filter((d,i)=>i>start&&i<=end);
+        r = {
+            axis: text,
+            q1: ss.quantile(d, 0.25),
+            q3: ss.quantile(d, 0.75),
+            median: ss.median(d),
+            // outlier: ,
+            arr: sumstat
+        };
+        // if (d.length>4)
+        // {
+        //     const iqr = r.q3-r.q1;
+        //     console.log('Outliers: ',d.filter(e=>e>(r.q3+outlierMultiply*iqr)||e<(r.q1-outlierMultiply*iqr)).length);
+        //     r.outlier = _.unique(d.filter(e=>e>(r.q3+outlierMultiply*iqr)||e<(r.q1-outlierMultiply*iqr)));
+        //     console.log('Unquie points: ',r.outlier.length);
+        // }else{
+        //     r.outlier =  _.unique(d);
+        // }
+        r.outlier = []
+        return r;
+    }else{
+        return  {
+            axis: text,
+            q1: null,
+            q3: null,
+            median: null,
+            // outlier: ,
+            arr: []
+        };
+    }
 }

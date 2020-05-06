@@ -167,7 +167,7 @@ let JobMap = function() {
             .style('opacity',0)
             .style('pointer-events', runopt.mouse.lensing?'auto':'none');
 
-        table_headerNode = g.append('g').attr('class', 'table header').attr('transform', `translate(600,${0})`);
+        table_headerNode = g.append('g').attr('class', 'table header').attr('transform', `translate(600,${-15})`);
         table_headerNode.append('g').attr('class','back').append('path').styles({'fill':'#ddd'});
 
         timebox = svg.append('g').attr('class','timebox')
@@ -1375,7 +1375,7 @@ let JobMap = function() {
                 table_footerNode = nodeg.append('g').attr('class', 'table footer');
             table_footerNode.append('g').attr('class', 'back').append('path').styles({'fill': '#ddd'});
 
-            table_footerNode.attr('transform', `translate(600,${yscale(user.length)})`);
+            table_footerNode.attr('transform', `translate(600,${yscale(user.length+1)})`);
             table_footer(table_footerNode);
 
 
@@ -1560,6 +1560,7 @@ let JobMap = function() {
 
         return jobMap;
     };
+    jobMap.redrawRadar = jobMap.draw;
     function releasehighlight(){
         g.selectAll('.node').style('pointer-events','auto').classed('fade',false).classed('hide',false).classed('highlight',false);
         g.selectAll('.node .jobNode').classed('hide',jobEmpty);
@@ -1649,10 +1650,11 @@ let JobMap = function() {
         })
     }
     function updaterow(path){
+        var delta_h = Math.max(tableLayout.row.height/2,15)
         let rows = path.selectAll('.row').data(d=>[showtable?tableData[d.name]:tableData[d.name].filter(e=>tableLayout.column[e.key])],e=>e.id);
         rows.exit().remove();
         let rows_n = rows.enter().append('g').attr('class', 'row')
-            .attr('transform',`translate(0,${-tableLayout.row.height/2})`);
+            .attr('transform',`translate(0,${-delta_h})`);
         // rows_n.append('rect').attrs({'class':'back-row','width':tableLayout.row.width,'height':tableLayout.row.height});
         let cells = rows_n.merge(rows).selectAll('.cell').data(d=>d,d=>d.key);
         cells.exit().remove();
@@ -2403,26 +2405,36 @@ let JobMap = function() {
     jobMap.highlight = function (name) {
         filter.push(name);
         filter = _.uniq(filter);
-        if (runopt.compute.type==='timeline')
-            g.selectAll(`.computeNode${freezing?'.highlight':':not(.fade)'} .linkLineg, .computeNode${freezing?'.highlight':':not(.fade)'}  .linegg`).classed('fade2',true);
-        else
-            g.selectAll(`.computeNode${freezing?'.highlight':':not(.fade)'} `).classed('fade2',true);
-        g.selectAll('.computeNode').selectAll(`${filter.map(d=>'.'+fixName2Class(d))}`).classed('fade2',false)
-            .each(function(){
-                (d3.select(this.parentNode.parentNode).classed('computeNode')?d3.select(this.parentNode.parentNode):d3.select(this.parentNode.parentNode.parentNode)).dispatch('mouseover')});
+        setTimeout(()=>{
+            let selected = g.selectAll(`.computeNode${freezing?'.highlight':':not(.fade)'}`);
+            if (runopt.compute.type==='timeline'){
+                selected.select('.linkLineg').classed('fade2',true);
+                selected.select('.linegg').classed('fade2',true);
+            }else {
+                selected.classed('fade2', true);
+            }
+            g.selectAll('.computeNode').selectAll(`${filter.map(d=>'.'+fixName2Class(d))}`).classed('fade2',false)
+                // TODO: improve interaction with chart here
+                .each(function(){
+                    (d3.select(this.parentNode.parentNode).classed('computeNode')?d3.select(this.parentNode.parentNode):d3.select(this.parentNode.parentNode.parentNode)).dispatch('mouseover')});
+        },0)
     }
     jobMap.unhighlight = function (name) {
         _.pull(filter,name);
-        if (filter.length) {
-            if (runopt.compute.type==='timeline')
-                g.selectAll(`.computeNode${freezing?'.highlight':':not(.fade)'}  .linkLineg, .computeNode${freezing?'.highlight':':not(.fade)'}  .linegg`).classed('fade2',true);
-            else
-                g.selectAll(`.computeNode${freezing?'.highlight':':not(.fade)'} `).classed('fade2',true);
-            g.selectAll(`${filter.map(d => '.' + fixName2Class(d))}`).classed('fade2', false);
-        }else{
-            g.selectAll(`.fade2`).classed('fade2', false);
-        }
-        releaseSelection();
+        setTimeout(()=> {
+            if (filter.length) {
+                let selected = g.selectAll(`.computeNode${freezing ? '.highlight' : ':not(.fade)'}`);
+                if (runopt.compute.type === 'timeline') {
+                    selected.select('.linkLineg').classed('fade2', true);
+                    selected.select('.linegg').classed('fade2', true);
+                } else
+                    selected.classed('fade2', true);
+                g.selectAll(`${filter.map(d => '.' + fixName2Class(d))}`).classed('fade2', false);
+            } else {
+                g.selectAll(`.fade2`).classed('fade2', false);
+            }
+            releaseSelection();
+        })
     }
     jobMap.callback = function (_) {
         if (arguments.length) {

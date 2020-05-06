@@ -7,7 +7,7 @@ angular.module('hpccApp')
         data:{}
     };
     let first = true;
-
+    let init = true;
     Loaddata.reset = function(hard) {
         Loaddata.data = Dataset.currentDataset;
     };
@@ -28,7 +28,8 @@ angular.module('hpccApp')
                         if (!init)
                             resetRequest();
                         else
-                            init();
+                            initFunc();
+                        init = false
                         preloader(false)
                     }
                     firstTime = false;
@@ -79,18 +80,19 @@ angular.module('hpccApp')
 
         function loadata1(data){
 
-            data['timespan'] = data.timespan.map(d=>new Date(d3.timeFormat('%a %b %d %X CDT %Y')(new Date(d.replace('Z','')))));
+            data['timespan'] = data.timespan.map(d=>new Date(d3.timeFormat('%a %b %d %X CDT %Y')(new Date(+d?+d:d.replace('Z','')))));
             _.without(Object.keys(data),'timespan').forEach(h=>{
                 delete data[h].arrCPU_load;
                 serviceLists.forEach((s,si)=>{
                     if (data[h][serviceListattr[si]])
                         data[h][serviceListattr[si]] = data.timespan.map((d,i)=>
-                            data[h][serviceListattr[si]][i]? data[h][serviceListattr[si]][i].slice(0,s.sub.length):d3.range(0,s.sub.length).map(e=>null));
+                            data[h][serviceListattr[si]][i]? data[h][serviceListattr[si]][i].slice(0,s.sub.length).map(e=>e?e:undefined):d3.range(0,s.sub.length).map(e=>undefined));
                     else
                         data[h][serviceListattr[si]] = data.timespan.map(d=>d3.range(0,s.sub.length).map(e=>null));
                 })
             });
             updateDatainformation(data['timespan']);
+            // console.log(data["compute-1-26"].arrFans_health[0])
             sampleS = data;
 
             // make normalize data
@@ -116,10 +118,11 @@ angular.module('hpccApp')
             }
 
 
-            if (!firstTime)
+            if (!init)
                 resetRequest();
             else
-                init();
+                initFunc();
+            init = false;
             preloader(false)
             firstTime = false;
         }
@@ -186,6 +189,13 @@ angular.module('hpccApp')
         function loadcsv(data) {
             db = "csv";
             newdatatoFormat_noSuggestion(data, separate);
+            if (object.customTime){
+                stickKey = object.customTime.label;
+                stickKeyFormat = object.customTime.format;
+            }else{
+                stickKey = TIMEKEY;
+                stickKeyFormat = TIMEFORMAT;
+            }
             serviceListattrnest = serviceLists.map(d=>({
                 key:d.text,sub:d.sub.map(e=>e.text)
             }));
@@ -208,8 +218,9 @@ angular.module('hpccApp')
                         resetRequest();
                     }
                     else{
-                        init();
+                        initFunc();
                     }
+            initFunc = false
                     preloader(false);
 
         }

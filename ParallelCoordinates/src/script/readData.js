@@ -1,24 +1,27 @@
-var query_time
+var query_time;
+let cluster_info=[];
+let dataRaw;
 function initApp(){
     // load filter file
         preloader(true,undefined,'Read data file...');
         readFilecsv(d3.select('#datacom').node().value);
 }
 function formatService(init){
-    // if (runopt.minMax)
-    //     calculateServiceRange();
-    // else
     serviceLists.forEach(s=>{
         if(s.text.split('vs.').length>1) {
             s.enable = false;
             s.sub[0].enable = false;
         }
-    })
+    });
     serviceFullList_Fullrange = _.clone(serviceFullList);
     conf.serviceList = serviceList;
     conf.serviceLists = serviceLists;
     conf.serviceListattr = serviceListattr;
     conf.serviceListattrnest = serviceListattrnest;
+    service_custom_added = [{text:'Time',id:-1,enable:true,isDate:true,class:"sorting_disabled"},{text:'Cluster',id:-2,enable:false,hide:true,
+        color:colorCluster,
+        axisCustom:{ticks:0,tickFormat:d=> `Group ${cluster_info[d].orderG+1}`,tickInvert:d=> cluster_info.find(c=>c.name===d).index}}];
+    serviceFullList_withExtra = _.flatten([service_custom_added,serviceFullList]);
     drawFiltertable();
 }
 
@@ -113,11 +116,12 @@ function object2DataPrallel(ob){
                 });
             });
             if (validkey) {
-                eachIn.Time = sampleS.timespan[i];
+                eachIn[stickKey] = stickKey===TIMEKEY? sampleS.timespan[i] : sampleS.timespan.length-1-i;
                 eachIn.rack = ishpcc?("Rack " + rack):rack;
                 eachIn.compute = com.key;
                 eachIn.group = ishpcc?("Rack " + rack):rack;
-                eachIn.name = com.key + ', ' + d3.timeFormat("%B %d %Y %H:%M")(sampleS.timespan[i]);
+                eachIn.Cluster =com.value['arrcluster']?(com.value['arrcluster'][i]):0;
+                eachIn.name = com.key + ', ' + stickKeyFormat(eachIn[stickKey]);
                 eachIn.id = com.key + "-" + count;
                 count++;
                 newdata.push(eachIn);
@@ -125,6 +129,15 @@ function object2DataPrallel(ob){
         }
 
     });
+    // if(stickKey!==TIMEKEY){
+    //     serviceFullList.push({text: stickKey,
+    //         id: serviceFullList.length,
+    //         enable: true,
+    //         idroot: serviceFullList.length,
+    //         angle: 5.834386356666759,
+    //         range: stickKey!==TIMEKEY?[sampleS.timespan[0],_.last(sampleS.timespan)] [0, sampleS.timespan.length-1]
+    //     })
+    // // }
     // return newdata.filter(d=>d.Time< new Date('Thu Mar 21 2019 16:20:00 GMT-0500 (Central Daylight Time)'))
     return newdata;
 }

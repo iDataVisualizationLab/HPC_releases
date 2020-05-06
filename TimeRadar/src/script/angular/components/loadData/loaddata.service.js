@@ -46,22 +46,6 @@ angular.module('hpccApp')
         let loadclusterInfo = false;
 
 
-            if (first||(db === 'csv'&& choice.category==='hpcc')) { //reload hostlist
-                d3.json(srcpath+'data/hotslist_Quanah.json', function (error, data) {
-                    if (error) {
-                    } else {
-                        firstTime = true;
-                        hostList = data;
-                        systemFormat();
-                        inithostResults();
-                        formatService(true);
-                        jobMap.hosts(hosts);
-                        MetricController.axisSchema(serviceFullList, true).update();
-                    }
-                });
-                first = false;
-            }
-
             dataInformation.filename = choice.name;
             if(choice.category==='hpcc')
                 setTimeout(() => {
@@ -83,9 +67,19 @@ angular.module('hpccApp')
                         d3.json(choice.url.replace(/(\w+).json|(\w+).csv/,'$1_job_compact.json'), function (error, job) {
                             if (error) {
                                 loadata1(data, undefined);
+                                shap={};
+                                d3.json(choice.url.replace(/(\w+).json|(\w+).csv/,'$1_shap.json'), function (error, shape) {
+                                    if(!error)
+                                        shap  = shape;
+                                });
                                 return;
                             }
                             loadata1(data, job);
+                            shap={};
+                            d3.json(choice.url.replace(/(\w+).json|(\w+).csv/,'$1_shap.json'), function (error, shape) {
+                                if(!error)
+                                    shap  = shape;
+                            });
                             return;
                         });
                     });
@@ -95,31 +89,31 @@ angular.module('hpccApp')
 
         function loadata1(data,job){
             makedataworker();
-            data['timespan'] = data.timespan.map(d=>new Date(d3.timeFormat('%a %b %d %X CDT %Y')(new Date(d.replace('Z','')))));
+            data['timespan'] = data.timespan.map(d=>new Date(d3.timeFormat('%a %b %d %X CDT %Y')(new Date(+d?+d:d.replace('Z','')))));
+            sampleS = data;
+            if (choice.category==='hpcc') { //reload hostlist
+                firstTime = true;
+                systemFormat();
+                inithosts();
+                formatService(true);
+                jobMap.hosts(hosts);
+                MetricController.axisSchema(serviceFullList, true).update();
+                first = false;
+            }
             _.without(Object.keys(data),'timespan').forEach(h=>{
                 delete data[h].arrCPU_load;
                 serviceLists.forEach((s,si)=>{
                     if (data[h][serviceListattr[si]])
                         data[h][serviceListattr[si]] = data.timespan.map((d,i)=>
-                            data[h][serviceListattr[si]][i]? data[h][serviceListattr[si]][i].slice(0,s.sub.length):d3.range(0,s.sub.length).map(e=>null));
+                            data[h][serviceListattr[si]][i]? data[h][serviceListattr[si]][i].slice(0,s.sub.length).map(e=>e?e:null):d3.range(0,s.sub.length).map(e=>null));
                     else
                         data[h][serviceListattr[si]] = data.timespan.map(d=>d3.range(0,s.sub.length).map(e=>null));
                 })
             });
             updateDatainformation(data['timespan']);
-            sampleS = data;
-
+            inithostResults();
             // make normalize data
-            tsnedata = {};
-            hosts.forEach(h => {
-                tsnedata[h.name] = sampleS.timespan.map((t, i) => {
-                    let array_normalize = _.flatten(serviceLists.map(a => d3.range(0, a.sub.length).map(vi => {
-                        let v = sampleS[h.name][serviceListattr[a.id]][i][vi];
-                        return d3.scaleLinear().domain(a.sub[0].range)(v === null ? undefined: v) || 0})));
-                    array_normalize.name = h.name;
-                    array_normalize.timestep =i;
-                    return array_normalize;
-                })});
+            initTsnedata();
             if(job)
                 sampleJobdata = job;
             else
@@ -231,12 +225,18 @@ angular.module('hpccApp')
         preloader(true, 0,"Load data....");
 
         function loadcsv(data) {
+            shap={};
+            d3.json(choice.url.replace(/(\w+).json|(\w+).csv/,'$1_shap.json'), function (error, shape) {
+                if(!error)
+                    shap  = shape;
+            });
+
             db = "csv";
             newdatatoFormat_noSuggestion(data, separate);
-
             inithostResults();
             formatService(true);
             processResult = processResult_csv;
+            initTsnedata();
             makedataworker();
             initDataWorker();
             // addDatasetsOptions()
